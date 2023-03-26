@@ -2343,6 +2343,118 @@ func TestGetBackendServers(t *testing.T) {
 				}
 			},
 		},
+		{
+			Ingresses: []*ingress.Ingress{
+				{
+					Ingress: networking.Ingress{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "current-frontend",
+							Namespace: "example",
+						},
+						Spec: networking.IngressSpec{
+							Rules: []networking.IngressRule{
+								{
+									Host: "my.domain.com",
+									IngressRuleValue: networking.IngressRuleValue{
+										HTTP: &networking.HTTPIngressRuleValue{
+											Paths: []networking.HTTPIngressPath{
+												{
+													Path:     "/",
+													PathType: &pathTypePrefix,
+													Backend: networking.IngressBackend{
+														Service: &networking.IngressServiceBackend{
+															Name: "current-frontend",
+															Port: networking.ServiceBackendPort{
+																Number: 80,
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+					ParsedAnnotations: &annotations.Ingress{},
+				},
+				{
+					Ingress: networking.Ingress{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "new-service",
+							Namespace: "example",
+						},
+						Spec: networking.IngressSpec{
+							Rules: []networking.IngressRule{
+								{
+									Host: "my.domain.com",
+									IngressRuleValue: networking.IngressRuleValue{
+										HTTP: &networking.HTTPIngressRuleValue{
+											Paths: []networking.HTTPIngressPath{
+												{
+													Path:     "/someendpoint",
+													PathType: &pathTypeImplementationSpecific,
+													Backend: networking.IngressBackend{
+														Service: &networking.IngressServiceBackend{
+															Name: "new-service",
+															Port: networking.ServiceBackendPort{
+																Number: 80,
+															},
+														},
+													},
+												},
+												{
+													Path:     "/",
+													PathType: &pathTypeExact,
+													Backend: networking.IngressBackend{
+														Service: &networking.IngressServiceBackend{
+															Name: "new-service",
+															Port: networking.ServiceBackendPort{
+																Number: 80,
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+					ParsedAnnotations: &annotations.Ingress{},
+				},
+			},
+			Validate: func(ingresses []*ingress.Ingress, upstreams []*ingress.Backend, servers []*ingress.Server) {
+				if len(servers) != 2 {
+					t.Errorf("servers count should be 2, got %d", len(servers))
+					return
+				}
+				s := servers[1]
+
+				if !(s.Locations[0].Path == "/someendpoint" && s.Locations[0].PathType == &pathTypeImplementationSpecific) {
+					t.Errorf("first server location should be /someendpoint and implementation specific")
+				}
+
+				if !(s.Locations[1].Path == "/" && s.Locations[1].PathType == &pathTypeExact) {
+					t.Errorf("second server location should be / and exact path")
+				}
+
+				if !(s.Locations[2].Path == "/" && s.Locations[2].PathType == &pathTypePrefix) {
+					t.Errorf("third server location should be / and prefix path")
+				}
+			},
+			SetConfigMap: func(ns string) *v1.ConfigMap {
+				return &v1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:     "config",
+						SelfLink: fmt.Sprintf("/api/v1/namespaces/%s/configmaps/config", ns),
+					},
+					Data: map[string]string{},
+				}
+			},
+		},
 	}
 
 	for _, testCase := range testCases {
