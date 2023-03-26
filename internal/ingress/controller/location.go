@@ -25,8 +25,9 @@ import (
 )
 
 var (
-	pathTypeExact  = networking.PathTypeExact
-	pathTypePrefix = networking.PathTypePrefix
+	pathTypeExact                  = networking.PathTypeExact
+	pathTypePrefix                 = networking.PathTypePrefix
+	pathTypeImplementationSpecific = networking.PathTypeImplementationSpecific
 )
 
 // updateServerLocations inspects the generated locations configuration for a server
